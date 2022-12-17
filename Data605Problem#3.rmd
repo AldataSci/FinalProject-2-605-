@@ -1,0 +1,281 @@
+---
+title: "Data605Final Problem#3"
+author: "Al Haque"
+date: '2022-12-13'
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(matlib)
+library(matrixcalc)
+library(MASS)
+```
+
+```{r}
+## We are trying to predict the salesprice which is our target variable everything else can be used for our predictors.. 
+Training <- read_csv("https://raw.githubusercontent.com/AldataSci/FinalProject-2-605-/main/train.csv",show_col_types = FALSE)
+```
+
+## Descriptive Statistics:
+```{r}
+## we have 81 columns each with num and char types of column,,
+str(Training)
+```
+
+```{r}
+summary(Training)
+```
+```{r}
+## looking at various distributions
+hist(Training$LotArea)
+```
+```{r} 
+## more houses built in recent years.. 
+hist(Training$YearBuilt)
+```
+
+```{r}
+hist(Training$SalePrice)
+```
+
+
+```{r}
+##Bedroom above average..
+summary(Training$BedroomAbvGr)
+```
+
+```{r}
+## looking at the relationship between a functional house and the sales condition.. lors of partial sales and typ functionality rating
+prop.table(table(Training$Functional,Training$SaleCondition))
+
+```
+
+------
+### Making the scatterplt matrix with 3 independent variables.
+
+```{r}
+## y is the sales prices of the house..
+## x are GrLivArea,OverallQual,LotArea i.e variables I think should be correlated.. 
+
+Scatter_Mat <- Training %>%
+  dplyr::select(GrLivArea,OverallQual,SalePrice,LotArea) 
+
+```
+
+```{r}
+## mmaking a scatterplot matrix using the pairs argument...  there is a correlation between GrLivArea and SalesPrice,same with OverallQual and SalesPrice.. 
+pairs(Scatter_Mat, pch = 19)
+```
+
+### Creating a scatterplot matrix with the 3 quantitive variables from above
+
+```{r}
+## Wow if you look a the matrix salesprice is influenced by GrLivArea and OverallQual but not by LotArea which I think is weird..
+res <- cor(Scatter_Mat)
+round(res, 2)
+```
+
+### Test the hypotheses that the correlations between each pairwise set of variables is 0 and provide an 80% confidence interval.
+
+
+```{r} 
+## We reject the null hypothesis since the true correlation is not equal to 0 but correlation is 0.70
+corr <- cor.test(Scatter_Mat$GrLivArea, Scatter_Mat$SalePrice, method = "pearson",conf.level = 0.80)
+corr
+```
+
+```{r}
+## reject H0 since pariwise set of variable is not equal to 0 but correlation is 0.26
+corr1 <- cor.test(Scatter_Mat$LotArea, Scatter_Mat$SalePrice, method = "pearson",conf.level = 0.80)
+corr1
+```
+
+```{r}
+## reject H0 since pariwise set of variable is not equal to 0 but correlation is 0.79
+corr2 <- cor.test(Scatter_Mat$OverallQual, Scatter_Mat$SalePrice, method = "pearson",conf.level = 0.80)
+corr2
+```
+#### Discuss the meaning of your analysis:
+The family wise error is making at least one type I error in a series of hypothesis test, I believe for the hypothesis test between OverallQual and GrLiv Area that may not be the case since their correlation is high between the salesprice but for LotArea that may be the case since its correlation for SalesPrice is rather low. So in that hypothesis test I may have made a type one error since its correlation is 0.26,
+
+
+
+## Linear Algebra and Correlation:
+
+#### Invert our correlation matrix:
+
+```{r} 
+## This is our precision matrix with variance inflation factors on the diag (according to the problem)
+Inverse <- solve(res)
+Inverse
+```
+
+##### Multiply the precision with the correlation matrix
+
+```{r}
+Inverse %*% res
+```
+
+#### Multiply the correlation matrix with the precision matrix
+
+```{r}
+res %*% Inverse
+```
+### Doing LuDecomp on the correlation matrix
+
+```{r}
+##
+correl2 <- lu.decomposition(res)
+correl2
+```
+
+## Calculus-Based Probablity and Statistics:
+
+
+```{r}
+### This looks right tail skewed so I will use this variable. (First Floor Square Foot)
+hist(Training$`1stFlrSF`)
+```
+
+```{r}
+## check the class of this column since fitdistr takes numeric values and there was no zero values in this column.. 
+class(Training$`1stFlrSF`)
+```
+
+
+
+```{r}
+#### Then load the MASS package and run fitdistr to fit an exponential probability density function
+epdf <- fitdistr(Training$`1stFlrSF`,densfun = "exponential")
+```
+
+```{r} 
+## we will use this as our rate..
+epdf$estimate
+```
+
+
+```{r}
+## we will take 1000 samples using our lambda 
+set.seed(149)
+exp_dist <- rexp(1000,epdf$estimate)
+```
+
+```{r}
+### Histogram of original variable:
+hist(Training$`1stFlrSF`)
+```
+
+```{r}
+### histogram of our Exp_Dist
+hist(exp_dist)
+```
+
+
+The histogram of the lambda rates looks more pronounced with a clear right tail skew than the original data.. and the binwidths are more bigger than the original.. 
+
+
+#### Using the exponential pdf, find the 5th and 95th percentiles using the cumulative distribution function (CDF)
+
+```{r}
+## 5th estimate
+qexp(.05, rate = epdf$estimate)
+
+```
+
+```{r}
+qexp(0.95,rate=epdf$estimate)
+```
+#### Also generate a 95% confidence interval from the empirical data, assuming normality
+```{r}
+## I've found a function that calculates the confidence interval assuming normality.. 
+norm.interval = function(data, variance = var(data), conf.level = 0.95) {
+ z = qnorm((1 - conf.level)/2, lower.tail = FALSE)
+ xbar = mean(data)
+ sdx = sqrt(variance/length(data))
+ c(xbar - z * sdx, xbar + z * sdx)
+ }
+norm.interval(Training$`1stFlrSF`,variance=var(Training$`1stFlrSF`),conf.level = 0.95)
+
+```
+Citation: <https://pages.stat.wisc.edu/~yandell/st571/R/append7.pdf>
+
+#### Finally, provide the empirical 5th percentile and 95th percentile of the data
+
+```{r}
+quantile(Training$`1stFlrSF`,0.05)
+```
+```{r}
+quantile(Training$`1stFlrSF`,0.95)
+```
+
+#### Discuss:
+I believe that the model had properly generated a bunch of values that had created an exponential distribution but the column of the first floor square foot wasn't that right tail skewed so it seems that the 95th percentile for the empirical data was higher than the 95% confidence interval for the generated values.. but the random values generated from the samples had produced more values near 0 than I would look since it doesn't look that accurate compared to the original data..
+
+
+
+### Part 4 Linear Regression Model 
+
+For this part I will handpick a bunch of predictors that I think make sense in determining the price of a house put it in the linear regression model and do stepwise analysis until all the predictors are significant and increases the p value...
+
+
+#### Building a Linear Model
+
+From the previous problem I discovered that SalesPrice was highly correlated by GrLivArea and OverallQual so I will include those into my lm model and other handpicked predictors that I think makes sense when pricing the house. 
+
+```{r}
+## Convert this categorical into a numerical variable
+Training$Neighborhood <- as.integer(as.factor(Training$Neighborhood))
+head(Training$Neighborhood)
+```
+
+```{r}
+## Convert this categorical into a numerical 
+Training$Electrical <- as.integer(as.factor(Training$Electrical))
+head(Training$Electrical)
+```
+
+
+
+```{r}
+lm.model <- lm(SalePrice~OverallQual+GrLivArea+GarageArea+OverallCond+BsmtUnfSF+YearBuilt+`1stFlrSF`+Electrical+Neighborhood+OpenPorchSF+WoodDeckSF+LotArea,data=Training)
+summary(lm.model)
+```
+I can see that the R squared value is 82% which is rather high but we have to delete some variables from the model since some of them aren't signifcant...  So I will remove OpenPorch,Neighborhood and Electrical which are not signifcant..
+
+```{r}
+lm.model2 <- lm(SalePrice~OverallQual+GrLivArea+GarageArea+OverallCond+YearBuilt+`1stFlrSF`,data=Training)
+summary(lm.model2)
+```
+That looks a lot better and cleaner even though our R squared value is small I've tried to use predictors that weren't related to each other and it seems that these predictors explain 77% of the varablitiy in our data.. and all the predictors are significant 
+
+
+
+#### Residual Analysis:
+
+```{r}
+plot(fitted(lm.model2),resid(lm.model2))
+```
+
+These residuals worry me it seems like there is some sort of patterns occuring in the model which isn't a good sign that this model would be helpful and the model predicts around the same values.. 
+
+
+```{r}
+qqnorm(resid(lm.model2))
+qqline(resid(lm.model2))
+```
+
+
+#### Kaggle Submission:
+
+My Kaggle name is Al Haque and my kaggle score is 0.74556
+
+
+##### Sources:
+
+<https://www.statisticshowto.com/familywise-error-rate/>
+<https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/cor.test>
+<https://stat.ethz.ch/R-manual/R-devel/library/MASS/html/fitdistr.html>
+<http://www.sthda.com/english/articles/40-regression-analysis/163-regression-with-categorical-variables-dummy-coding-essentials-in-r/>
+<https://quantifyinghealth.com/variables-to-include-in-regression/>

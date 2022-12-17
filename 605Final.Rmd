@@ -1,0 +1,126 @@
+---
+title: "Final Exam Problem # 1"
+author: "Al Haque"
+date: '2022-12-10'
+output: html_document
+---
+
+```{r}
+## The matrix is not in its proper form we have to transpose it so that the row elements correspond to its inlink and column wise it corresponds to its outlink each column represents a page. ## I also introduced 1/6 in the second row so that the matrix behaves well..
+A <- matrix(c(0, 1/2, 1/2, 0, 0, 0,
+             1/6, 1/6, 1/6, 1/6, 1/6, 1/6,
+             1/3, 1/3, 0, 0, 1/3, 0,
+             0, 0, 0, 0, 1/2, 1/2,
+             0, 0, 0, 1/2, 0, 1/2,
+             0, 0, 0, 1, 0, 0), nrow=6)
+```
+
+```{r}
+## create the decay so
+
+d <- 0.85
+
+B <- (d* A) + (0.15/6)
+```
+
+
+```{r}
+## create the r vector
+r <- matrix(c(1/6,1/6,1/6,1/6,1/6,1/6),nrow=6)
+
+```
+
+
+### Start with a uniform rank vector r and perform power iterations on B till convergence. That is, compute the solution r = Bn × r. Attempt this for a sufficiently large n so that r actually converges 
+
+
+```{r}
+pow_iter <- function(A,r,n){
+  B = diag(nrow(A))
+  for (i in 1:n){
+    ## keep updating the B matrix by number of iterations
+    B = B %*% A
+  
+  }
+  return (B %*% r)
+}  
+```
+
+
+```{r}
+## experiment with numbers of iterations.. 
+pow_iter(B,r,1)
+```
+
+```{r}
+pow_iter(B,r,10)
+```
+
+```{r}
+pow_iter(B,r,14)
+```
+
+
+```{r}
+pow_iter(B,r,20)
+```
+
+
+
+```{r}
+(vecto1 <- pow_iter(B,r,30))
+```
+```{r}
+pow_iter(B,r,40)
+```
+
+It seems that the B vector converges after 15 to 30 iterations since we are now getting approximately the same values: 
+
+------
+
+### Compute the eigen-decomposition of B and verify that you indeed get an eigenvalue of 1
+
+```{r}
+eigen(B)
+```
+```{r}
+## verify that we got the max eigenvalue of 1:
+eigenvalue = eigen(B)$values
+max(Re(eigenvalue[abs(Im(eigenvalue)) < 1e-6]))
+
+```
+
+```{r}
+## We can see that the first set of eigenvectors are all positive as given by the theorem where all the vectors are positive..
+eigen(B)$vectors
+```
+
+```{r}
+## The eigen function is normalizing the eigenvector so we have to find the cancel the normalization by  
+vecto2 <- as.numeric((1/sum(eigen(B)$vectors[,1]))*eigen(B)$vectors[,1])
+vecto2
+```
+
+###Using the igraph function:
+
+```{r}
+library(igraph)
+```
+
+```{r}
+## I didn't how to use this... nned to use the transpose for the argument..and plot it to use for page rank method
+graphA <-graph.adjacency(t(A),weighted = TRUE,mode="directed")
+plot(graphA)
+
+```
+```{r}
+vecto3 <- page.rank(graphA)$vector
+vecto3
+```
+
+```{r}
+data <- cbind(vecto1,vecto2,vecto3)
+colnames(data) <- c("Iteration Method","Eigen Function","Page Rank Function")
+data
+```
+
